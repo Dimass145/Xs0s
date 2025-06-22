@@ -5,6 +5,10 @@ import (
 	"Xs0s/internal/user"
 	"Xs0s/utils/customButton"
 	"fmt"
+	"image/color"
+	"log"
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -12,9 +16,6 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
-	"log"
-	"time"
 )
 
 var Field = *container.NewWithoutLayout()
@@ -170,6 +171,7 @@ func MakeMove(x, y float32) {
 	case 'X':
 		if g.Field[i][j] == ' ' && !CheckDraw() && !CheckWin() {
 			g.Current = '0'
+			window.SetTitle("you play " + string(Player.Char)+" | Now zero's turn")
 			g.Field[i][j] = 'X'
 			DrawField()
 			fmt.Println(g.Field, "first")
@@ -184,6 +186,7 @@ func MakeMove(x, y float32) {
 	case '0':
 		if g.Field[i][j] == ' ' && !CheckDraw() && !CheckWin() {
 			g.Current = 'X'
+			window.SetTitle("you play " + string(Player.Char)+" | Now crosse's turn")
 			g.Field[i][j] = '0'
 			fmt.Println(g.Field)
 			DrawField()
@@ -208,8 +211,13 @@ func MakeMove(x, y float32) {
 	go func() {
 
 		g.Field, g.Current = server.WaitMove(g.Field)
+		if g.Current == '0'{
+			window.SetTitle("you play " + string(Player.Char)+" | Now zero's turn")
+			fmt.Print(g.Current)
+		} else if g.Current == 'X'{
+			window.SetTitle("you play " + string(Player.Char)+" | Now crosse's turn")
+		}
 		DrawField()
-
 		if CheckWin() {
 			if Player.Char == '0' {
 				OfferNewGame('X')
@@ -228,24 +236,29 @@ func OfferNewGame(winner byte) {
 	RClr := uint8(1)
 	BClr := uint8(0)
 	server.IsServerRunning = false
+	Str := "Draw"
+	if winner == 'X' {
+		Str = "Winner is X"
+	} else if winner == '0' {
+		Str = "Winner is 0"
+	}
 	if winner == Player.Char {
 		GClr = 1
 		RClr = 0
+		window.SetTitle("you play " + string(Player.Char)+" | You win!")
 	} else if winner != Player.Char && winner != ' ' {
 		GClr = 0
 		RClr = 1
+		window.SetTitle("you play " + string(Player.Char)+" | You lose!")
 	} else {
 		BClr = 1
+		window.SetTitle("you play " + string(Player.Char)+" | Draw")
 	}
-	wintext := "winner is " + string(winner)
-	if winner == ' ' {
-		wintext = "Draw"
-	}
-	Text := container.NewVBox(
-		widget.NewLabel(wintext),
-		widget.NewLabel("Main menu"),
-	)
-	text := container.NewCenter(Text)
+	Text := container.NewCenter(widget.NewLabel("Main menu"))
+	str := container.NewCenter(widget.NewLabel(Str))
+	text1 := container.NewVBox(str, Text)
+
+	text := container.NewCenter(text1)
 
 	btnExit := container.New(
 		layout.NewStackLayout(),
@@ -303,7 +316,7 @@ func CheckDraw() bool {
 }
 
 func StartNewGame() {
-	window.SetTitle("you play " + string(Player.Char))
+	window.SetTitle("you play " + string(Player.Char) + " | Now crosse's turn")
 	AddButttons()
 	MakeGrid()
 	g = NewGame()
@@ -319,7 +332,7 @@ func StartGame() {
 }
 
 func ShowMenu() {
-
+	window.SetTitle("Tic tac toe")
 	window.Resize(fyne.NewSize(608, 608))
 
 	OLEG := canvas.NewImageFromFile("internal/user/OLEG.jpg")
@@ -349,7 +362,6 @@ func ShowMenu() {
 
 	FindButton := widget.NewButton("Find game", func() {
 		FindGameWindow()
-
 	})
 	FindButton.Resize(fyne.NewSize(200, 50))
 	FindButton.Move(fyne.NewPos(200, 300))
@@ -385,20 +397,36 @@ func ShowMenu() {
 
 func FindGameWindow() {
 	var ip string
+
 	entry := widget.NewEntry()
 	entry.SetPlaceHolder("Enter enemy IP")
+	Text := container.NewStack(
+		canvas.NewRectangle(color.RGBA{R: 23, G: 23, B: 24, A: 255}),
+		canvas.NewText(" Server not found ", color.RGBA{R: 255, G: 0, B: 0, A: 255}),
+	)
+	text := container.NewCenter(
+		Text,
+	)
+	text.Resize(fyne.NewSize(300, 40))
+	text.Move(fyne.NewPos(150, 160))
 	EnterButton := widget.NewButton("Enter", func() {
 		ip = entry.Text
 		Player.Char = '0'
 
 		if !server.StartClient(ip) {
-			window.SetTitle("server not found")
+			FindingServer.Add(text)
 			return
 		}
 		StartGame()
 		DrawField()
 		go func() {
 			g.Field, g.Current = server.WaitMove(g.Field)
+			if g.Current == '0'{
+				window.SetTitle("you play " + string(Player.Char)+" | Now zero's turn")
+				fmt.Print(g.Current)
+			} else if g.Current == 'X'{
+				window.SetTitle("you play " + string(Player.Char)+" | Now crosse's turn")
+			}
 			DrawField()
 		}()
 	})
@@ -406,8 +434,8 @@ func FindGameWindow() {
 	ExitButton.Resize(fyne.NewSize(200, 50))
 	ExitButton.Move(fyne.NewPos(200, 300))
 
-	entry.Resize(fyne.NewSize(350, 40))
-	entry.Move(fyne.NewPos(100, 200))
+	entry.Resize(fyne.NewSize(300, 40))
+	entry.Move(fyne.NewPos(150, 200))
 	EnterButton.Resize(fyne.NewSize(200, 50))
 	EnterButton.Move(fyne.NewPos(200, 250))
 
@@ -415,7 +443,6 @@ func FindGameWindow() {
 	FindingServer.Add(entry)
 	FindingServer.Add(EnterButton)
 	window.SetContent(&FindingServer)
-
 }
 
 func RunApp() {
@@ -460,17 +487,26 @@ func LogIn() {
 func FindingWindow() {
 	var find bool
 	find = true
-	ExitButton := widget.NewButton("Exit", func() {
+	Text := container.NewCenter(widget.NewLabel("Exit"))
+	str := container.NewCenter(widget.NewLabel("SEARCHING OPPONENT..."))
+	text1 := container.NewVBox(str, Text)
+
+	text := container.NewCenter(text1)
+	ExitButton := widget.NewButton("", func() {
 		find = false
 		server.IsServerRunning = false
 		ShowMenu()
 	})
-	ExitButton.Resize(fyne.NewSize(608, 608))
-	ExitButton.Move(fyne.NewPos(0, 0))
+	ExitBtn := container.New(
+		layout.NewMaxLayout(),
+		ExitButton,
+		text,
+	)
+	ExitBtn.Resize(fyne.NewSize(608, 608))
+	ExitBtn.Move(fyne.NewPos(0, 0))
 
-	FindingClient.Add(ExitButton)
+	FindingClient.Add(ExitBtn)
 	window.SetContent(&FindingClient)
-	window.SetTitle("Searching opponent")
 	go func() {
 		for {
 			time.Sleep(time.Millisecond * 16)
